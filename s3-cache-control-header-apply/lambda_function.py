@@ -13,6 +13,7 @@ def lambda_handler(event, context):
     updated = 0
 
     try:
+        # STRICT LOGIC START
         for page in paginator.paginate(Bucket=BUCKET):
             for obj in page.get('Contents', []):
                 key = obj['Key']
@@ -33,9 +34,11 @@ def lambda_handler(event, context):
                 updated += 1
                 print(f'Updated: {key}')
         
+        # REMOVE THIS LINE IF ONLY USING STRICT LOGIC
         codepipeline.put_job_success_result(jobId=job_id)
 
         return {'updated': updated}
+        # STRICT LOGIC END
     except Exception as e:
         codepipeline.put_job_failure_result(
             jobId=job_id,
