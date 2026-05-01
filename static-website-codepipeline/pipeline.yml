@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Static site CodePipeline — Source → Alpha → Approval → Deploy → Cleanup
+
+Parameters:
+  CodeStarConnectionArn:
+    Type: String
+    Description: ARN of the CodeStar connection to GitHub
+
+  StagingBucket:
+    Type: String
+    Description: S3 bucket name for Alpha/staging deploy
+
+  ProdBucket:
+    Type: String
+    Description: S3 bucket name for production deploy
+
+  AddCacheControlHeaderFunctionName:
+    Type: String
+    Description: Name of the Lambda that sets Cache-Control headers
+
+  InvalidateCloudFrontDistroFunctionName:
+    Type: String
+    Description: Name of the Lambda that invalidates the CloudFront distribution
+
+  PipelineRoleArn:
+    Type: String
+    Description: IAM role ARN for CodePipeline to assume
+
+Resources:
+  ArtifactStoreBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-artifacts"
+
+  StaticSitePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: static-site-pipeline
+      RoleArn: !Ref PipelineRoleArn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactStoreBucket
+
+      Stages:
+        # ── Stage 1: Source ──────────────────────────────────────────────────
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: "1"
+              OutputArtifacts:
+                - Name: source_output
+              Configuration:
+                ConnectionArn: !Ref CodeStarConnectionArn
+                FullRepositoryId: "your-org/your-repo"
+                BranchName: main
+
+        # ── Stage 2: Alpha (staging deploy) ──────────────────────────────────
+        - Name: Alpha
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              InputArtifacts:
+                - Name: source_output
+              Configuration:
+                BucketName: !Ref StagingBucket
+                Extract: "true"
+
+        # ── Stage 3: Approval ────────────────────────────────────────────────
+        - Name: Approval
+          Actions:
+            - Name: Manual_Approval
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+
+        # ── Stage 4: Deploy (production) ─────────────────────────────────────
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              InputArtifacts:
+                - Name: source_output
+              Configuration:
+                BucketName: !Ref ProdBucket
+                Extract: "true"
+
+        # ── Stage 5: Cleanup (sequential Lambda invokes) ─────────────────────
+        - Name: Cleanup
+          Actions:
+            - Name: Add_Cache_Control_Header
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: "1"
+              RunOrder: 1
+              Configuration:
+                FunctionName: !Ref AddCacheControlHeaderFunctionName
+
+            - Name: Invalidate-CloudFront-Distro
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: "1"
+              RunOrder: 2
+              Configuration:
+                FunctionName: !Ref InvalidateCloudFrontDistroFunctionName
