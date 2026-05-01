@@ -3,8 +3,6 @@ helpful snippets that i use and have used in my projects
 
 ---
 
-These are production snippets extracted from real pipelines — not tutorials or boilerplate, that I use or have used in current or past projects.
-
 ## What's In Here
 
 ### [`static-website-codepipeline/`](static-website-codepipeline/)
