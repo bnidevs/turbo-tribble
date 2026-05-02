@@ -1,0 +1,123 @@
+# ──────────────────────────────────────────────
+# Ping-Me: API Gateway HTTP API v2 → Lambda → SNS
+# ──────────────────────────────────────────────
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Ping-Me — HTTP API v2 gateway triggering a Lambda that publishes to SNS.
+
+# ──── Parameters ────
+
+Parameters:
+  StageName:
+    Type: String
+    Default: prod
+    Description: API Gateway stage name.
+
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket containing the Lambda deployment zip.
+
+  LambdaS3Key:
+    Type: String
+    Default: ping-me/lambda.zip
+    Description: S3 key for the Lambda deployment zip.
+
+Resources:
+  # ──── SNS Topic ────
+
+  PingMeTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ping-me-topic
+
+  # ──── IAM Role for Lambda ────
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ping-me-lambda-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ping-me-sns-publish
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref PingMeTopic
+
+  # ──── Lambda Function ────
+
+  PingMeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ping-me
+      Runtime: python3.13
+      Handler: lambda_function.lambda_handler
+      Timeout: 10
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaS3Key
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref PingMeTopic
+
+  # ──── Lambda Permission for API Gateway ────
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PingMeFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PingMeHttpApi}/*/*"
+
+  # ──── API Gateway HTTP API (v2) ────
+
+  PingMeHttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: ping-me-api
+      ProtocolType: HTTP
+
+  LambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref PingMeHttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt PingMeFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  PingMeRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref PingMeHttpApi
+      RouteKey: GET /ping-me
+      Target: !Sub "integrations/${LambdaIntegration}"
+
+  PingMeStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref PingMeHttpApi
+      StageName: !Ref StageName
+      AutoDeploy: true
+
+# ──── Outputs ────
+
+Outputs:
+  ApiEndpoint:
+    Description: Public URL for the ping-me endpoint
+    Value: !Sub "https://${PingMeHttpApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/ping-me"
+
+  SnsTopicArn:
+    Description: ARN of the SNS topic
+    Value: !Ref PingMeTopic
