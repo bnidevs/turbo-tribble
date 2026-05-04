@@ -20,6 +20,14 @@ Lambda function that checks a stock price against a target, calculates the dista
 ### [`ping-me/`](ping-me/)
 Lambda function behind API Gateway that lets anyone with the URL send you an SNS notification. A simple public "ping me" endpoint with no auth.
 
+### [`scroll-converter/`](scroll-converter/)
+Minimal JavaScript snippet that converts vertical mouse wheel input into horizontal scrolling. Intended for elements with `overflow-x: scroll` and `overflow-y: hidden` where traditional mouse wheels would otherwise be useless. No dependencies, no build step.
+
+### [`workflows/`](workflows/)
+GitHub Actions workflows for build, test, and release automation. Currently contains:
+
+- **[`macos-app-release/`](workflows/macos-app-release/)** — Builds, archives, and publishes a macOS app as a GitHub Release (`.dmg` + `.zip`) on version tag push.
+
 ## License
 
 [GPL-3.0](LICENSE)
