@@ -15,10 +15,10 @@ Lambda function that scans an S3 bucket and stamps `Cache-Control: max-age=31536
 Lambda function that creates a wildcard cache invalidation (`/*`) on a CloudFront distribution. Runs as a CodePipeline action or standalone. Ensures users see the latest content immediately after a deploy rather than waiting for TTL expiry.
 
 ### [`daily-stock-checker/`](daily-stock-checker/)
-Lambda function that checks a stock price against a target, calculates the distance, and sends an SNS notification with the update and a random quote. Designed to run on a daily EventBridge schedule, skipping NASDAQ holidays.
+Lambda function that checks a stock price against a target, calculates the distance, and sends an SNS notification with the update and a random quote. Designed to run on a daily EventBridge schedule, skipping NASDAQ holidays. Provided in three IaC flavors (CDK, Terraform, CloudFormation) that provision the Lambda, IAM role, and EventBridge schedule.
 
 ### [`ping-me/`](ping-me/)
-Lambda function behind API Gateway that lets anyone with the URL send you an SNS notification. A simple public "ping me" endpoint with no auth.
+Lambda function behind an HTTP API Gateway (v2) that lets anyone with the URL send you an SNS notification. A simple public "ping me" endpoint with no auth. Provided in three IaC flavors (CDK, Terraform, CloudFormation) that provision the Lambda, API Gateway, SNS topic, and IAM role.
 
 ### [`scroll-converter/`](scroll-converter/)
 Minimal JavaScript snippet that converts vertical mouse wheel input into horizontal scrolling. Intended for elements with `overflow-x: scroll` and `overflow-y: hidden` where traditional mouse wheels would otherwise be useless. No dependencies, no build step.
