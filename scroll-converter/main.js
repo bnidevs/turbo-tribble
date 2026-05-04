@@ -3,5 +3,5 @@ document.addEventListener("wheel", (e) => {
     return;
   }
   e.preventDefault();
-  product_row.scrollLeft += e.deltaY;
+  document.scrollLeft += e.deltaY;
 }, { passive: false });
