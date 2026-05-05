@@ -14,6 +14,9 @@ Lambda function that scans an S3 bucket and stamps `Cache-Control: max-age=31536
 ### [`cloudfront-distro-invalidator/`](cloudfront-distro-invalidator/)
 Lambda function that creates a wildcard cache invalidation (`/*`) on a CloudFront distribution. Runs as a CodePipeline action or standalone. Ensures users see the latest content immediately after a deploy rather than waiting for TTL expiry.
 
+### [`pagespeed-insights-to-cloudwatch-metrics/`](pagespeed-insights-to-cloudwatch-metrics/)
+Lambda function that fetches Google PageSpeed Insights scores for a list of URLs and publishes them as custom CloudWatch metrics. Runs as a post-deploy benchmark in website pipelines, snapshotting Lighthouse scores (accessibility, best practices, performance, SEO) for both mobile and desktop strategies.
+
 ### [`daily-stock-checker/`](daily-stock-checker/)
 Lambda function that checks a stock price against a target, calculates the distance, and sends an SNS notification with the update and a random quote. Designed to run on a daily EventBridge schedule, skipping NASDAQ holidays. Provided in three IaC flavors (CDK, Terraform, CloudFormation) that provision the Lambda, IAM role, and EventBridge schedule.
 
