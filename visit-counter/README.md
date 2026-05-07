@@ -6,12 +6,12 @@ IaC definitions for a serverless visit counter: an API Gateway REST API with dir
 
 Each file provisions the same set of resources:
 
-1. **DynamoDB Table** — A single table (`bnidevs.github.io-visit-tracker`) with a partition key `metric` (String) and on-demand billing. Stores a single item keyed `visits` with an `amount` attribute tracking the count.
+1. **DynamoDB Table** — A single table with a partition key `metric` (String) and on-demand billing. Stores a single item keyed `visits` with an `amount` attribute tracking the count.
 2. **IAM Role** — Grants API Gateway permission to call `dynamodb:UpdateItem` and `dynamodb:GetItem` on the table. Nothing else.
 3. **API Gateway REST API** — A public REST API (v1) with two routes:
    - `GET /visit` — Increments the counter by 1 via a DynamoDB `UpdateItem` call. Returns nothing meaningful (fire-and-forget).
    - `GET /count` — Reads the current count via a DynamoDB `GetItem` call. A response mapping template unwraps the DynamoDB JSON and returns the raw number.
-4. **CORS** — Both routes include `OPTIONS` preflight handlers and return `Access-Control-Allow-Origin` headers, scoped to `https://bnidevs.github.io` by default.
+4. **CORS** — Both routes include `OPTIONS` preflight handlers and return `Access-Control-Allow-Origin` headers, scoped to the configured origin URL.
 
 There is no Lambda in this stack. API Gateway talks to DynamoDB directly using AWS service integrations and VTL mapping templates.
 
@@ -45,7 +45,7 @@ The `UpdateExpression` used by `GET /visit` adds to an existing `amount` attribu
 
 ```sh
 aws dynamodb put-item \
-  --table-name bnidevs.github.io-visit-tracker \
+  --table-name <your-table-name> \
   --item '{"metric": {"S": "visits"}, "amount": {"N": "0"}}' \
   --condition-expression "attribute_not_exists(metric)"
 ```
