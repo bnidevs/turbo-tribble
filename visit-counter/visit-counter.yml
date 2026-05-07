@@ -1,0 +1,235 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Visit Counter – API Gateway (REST) direct integration with DynamoDB.
+  Hit counter for a GitHub Pages site.
+
+Parameters:
+  Region:
+    Type: String
+    Default: us-east-1
+    Description: AWS region (informational — deploy to desired region via CLI)
+
+  TableName:
+    Type: String
+    Default: bnidevs.github.io-visit-tracker
+
+  AllowedOrigin:
+    Type: String
+    Default: https://bnidevs.github.io
+
+Resources:
+  # ---------- DynamoDB Table ----------
+
+  VisitTrackerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: metric
+          AttributeType: S
+      KeySchema:
+        - AttributeName: metric
+          KeyType: HASH
+
+  # ---------- IAM Role for API Gateway → DynamoDB ----------
+
+  ApiGatewayDynamoRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: visit-counter-apigw-dynamo
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: dynamo-update
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                  - dynamodb:GetItem
+                Resource: !GetAtt VisitTrackerTable.Arn
+
+  # ---------- API Gateway REST API ----------
+
+  VisitCounterApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: visit-counter-api
+      Description: !Sub "Hit counter for ${AllowedOrigin}"
+
+  VisitResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref VisitCounterApi
+      ParentId: !GetAtt VisitCounterApi.RootResourceId
+      PathPart: visit
+
+  # ----- GET /visit -----
+
+  GetVisitMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VisitCounterApi
+      ResourceId: !Ref VisitResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:dynamodb:action/UpdateItem
+        Credentials: !GetAtt ApiGatewayDynamoRole.Arn
+        RequestTemplates:
+          application/json: !Sub |
+            {
+              "TableName": "${TableName}",
+              "Key": {
+                "metric": { "S": "visits" }
+              },
+              "UpdateExpression": "SET amount = amount + :num",
+              "ExpressionAttributeValues": {
+                ":num": { "N": "1" }
+              },
+              "ReturnValues": "NONE"
+            }
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # ----- OPTIONS /visit (CORS preflight) -----
+
+  OptionsVisitMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VisitCounterApi
+      ResourceId: !Ref VisitResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # =====================================================================
+  # /count – GET current visit count (DynamoDB GetItem)
+  # =====================================================================
+
+  CountResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref VisitCounterApi
+      ParentId: !GetAtt VisitCounterApi.RootResourceId
+      PathPart: count
+
+  # ----- GET /count -----
+
+  GetCountMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VisitCounterApi
+      ResourceId: !Ref CountResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:dynamodb:action/GetItem
+        Credentials: !GetAtt ApiGatewayDynamoRole.Arn
+        RequestTemplates:
+          application/json: !Sub |
+            {
+              "TableName": "${TableName}",
+              "Key": {
+                "metric": { "S": "visits" }
+              },
+              "ProjectionExpression": "amount"
+            }
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseTemplates:
+              application/json: |
+                #set($inputRoot = $input.path('$'))
+                $inputRoot.Item.amount.N
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # ----- OPTIONS /count (CORS preflight) -----
+
+  OptionsCountMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref VisitCounterApi
+      ResourceId: !Ref CountResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        IntegrationResponses:
+          - StatusCode: "200"
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: !Sub "'${AllowedOrigin}'"
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # ---------- Deployment & Stage ----------
+
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - GetVisitMethod
+      - OptionsVisitMethod
+      - GetCountMethod
+      - OptionsCountMethod
+    Properties:
+      RestApiId: !Ref VisitCounterApi
+
+  ProdStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref VisitCounterApi
+      DeploymentId: !Ref ApiDeployment
+      StageName: prod
+
+Outputs:
+  InvokeUrl:
+    Description: GET this URL to increment the counter
+    Value: !Sub "https://${VisitCounterApi}.execute-api.${AWS::Region}.amazonaws.com/prod/visit"
+
+  CountUrl:
+    Description: GET this URL to read the current count (shields.io badge format)
+    Value: !Sub "https://${VisitCounterApi}.execute-api.${AWS::Region}.amazonaws.com/prod/count"
