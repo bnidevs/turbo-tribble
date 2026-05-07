@@ -1,0 +1,221 @@
+# =============================================================================
+# Static Website Infrastructure
+# S3 (public static hosting) → CloudFront → Route 53 + ACM
+# =============================================================================
+#
+# PREREQUISITES:
+#   - The DomainName parameter must be a domain you own.
+#   - This stack MUST be deployed to us-east-1 because CloudFront requires
+#     its ACM certificate to be in us-east-1.
+#   - After deploying, you must update your domain registrar's nameservers
+#     to the ones in the stack outputs.
+#   - The stack will pause during certificate creation and wait for DNS
+#     validation to succeed. This will not complete until the hosted zone
+#     is authoritative (i.e., nameservers are pointed at your registrar).
+#
+# USAGE:
+#   aws cloudformation deploy \
+#     --template-file static-website.yml \
+#     --stack-name my-static-website \
+#     --parameter-overrides DomainName=example.com \
+#     --region us-east-1
+# =============================================================================
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Static website infrastructure: S3 public website hosting, CloudFront
+  distribution, Route 53 hosted zone, and ACM certificate with DNS validation.
+
+# -----------------------------------------------------------------------------
+# Parameters
+# -----------------------------------------------------------------------------
+
+Parameters:
+  DomainName:
+    Type: String
+    Description: The root domain name (e.g., example.com)
+    AllowedPattern: ^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$
+    ConstraintDescription: Must be a valid domain name
+
+  IndexDocument:
+    Type: String
+    Description: The index document for the S3 static website
+    Default: index.html
+
+  ErrorDocument:
+    Type: String
+    Description: The error document for the S3 static website
+    Default: error.html
+
+# -----------------------------------------------------------------------------
+# Resources
+# -----------------------------------------------------------------------------
+
+Resources:
+
+  # ---------------------------------------------------------------------------
+  # S3 Bucket — Public Static Website Hosting
+  # ---------------------------------------------------------------------------
+
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DomainName
+      WebsiteConfiguration:
+        IndexDocument: !Ref IndexDocument
+        ErrorDocument: !Ref ErrorDocument
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${WebsiteBucket.Arn}/*"
+
+  # ---------------------------------------------------------------------------
+  # Route 53 Hosted Zone
+  # ---------------------------------------------------------------------------
+
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref DomainName
+
+  # ---------------------------------------------------------------------------
+  # ACM Certificate (DNS Validated)
+  # ---------------------------------------------------------------------------
+  #
+  # This resource will block stack creation/update until the certificate is
+  # validated. Validation requires the hosted zone to be authoritative for
+  # the domain — meaning you must update your registrar's nameservers to
+  # the values in the HostedZone BEFORE validation can complete.
+  #
+  # Deployment strategy:
+  #   1. Comment out everything below the HostedZone on first deploy.
+  #   2. Deploy to create just the bucket and hosted zone.
+  #   3. Update registrar nameservers from the stack output.
+  #   4. Wait for DNS propagation (can take minutes to 48 hours).
+  #   5. Uncomment remaining resources and deploy again.
+  # ---------------------------------------------------------------------------
+
+  WebsiteCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZone
+
+  # ---------------------------------------------------------------------------
+  # CloudFront Distribution
+  # ---------------------------------------------------------------------------
+
+  WebsiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: WebsiteCertificate
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: !Ref IndexDocument
+        Aliases:
+          - !Ref DomainName
+        PriceClass: PriceClass_100
+        HttpVersion: http2and3
+        IPV6Enabled: true
+
+        Origins:
+          - Id: S3WebsiteOrigin
+            # Use the S3 website endpoint, NOT the REST endpoint
+            DomainName: !Select
+              - 1
+              - !Split
+                - "://"
+                - !GetAtt WebsiteBucket.WebsiteURL
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
+
+        DefaultCacheBehavior:
+          TargetOriginId: S3WebsiteOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          MinTTL: 0
+          DefaultTTL: 3600
+          MaxTTL: 86400
+
+        ViewerCertificate:
+          AcmCertificateArn: !Ref WebsiteCertificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: none
+
+  # ---------------------------------------------------------------------------
+  # Route 53 A Record → CloudFront
+  # ---------------------------------------------------------------------------
+
+  WebsiteARecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt WebsiteDistribution.DomainName
+        # CloudFront's fixed hosted zone ID
+        HostedZoneId: Z2FDTNDATAQYW2
+        EvaluateTargetHealth: false
+
+# -----------------------------------------------------------------------------
+# Outputs
+# -----------------------------------------------------------------------------
+
+Outputs:
+  Nameservers:
+    Description: Update your domain registrar with these nameservers
+    Value: !Join
+      - ", "
+      - !GetAtt HostedZone.NameServers
+
+  CloudFrontDistributionDomain:
+    Description: CloudFront distribution domain name
+    Value: !GetAtt WebsiteDistribution.DomainName
+
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID (needed for cache invalidation)
+    Value: !Ref WebsiteDistribution
+
+  S3WebsiteEndpoint:
+    Description: >-
+      S3 static website endpoint (publicly accessible — this bypasses CloudFront)
+    Value: !GetAtt WebsiteBucket.WebsiteURL
+
+  WebsiteUrl:
+    Description: The live website URL
+    Value: !Sub "https://${DomainName}"
