@@ -15,9 +15,9 @@ export class VisitCounterStack extends cdk.Stack {
     super(scope, id, props);
 
     const tableName =
-      props?.tableName ?? "bnidevs.github.io-visit-tracker";
+      props?.tableName ?? "INSERT DEFAULT TABLE NAME HERE";
     const allowedOrigin =
-      props?.allowedOrigin ?? "https://bnidevs.github.io";
+      props?.allowedOrigin ?? "INSERT DEFAULT URL HERE";
 
     // ---------- DynamoDB Table ----------
 

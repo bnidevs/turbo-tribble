@@ -12,13 +12,13 @@ variable "region" {
 variable "table_name" {
   description = "DynamoDB table name"
   type        = string
-  default     = "bnidevs.github.io-visit-tracker"
+  default     = "INSERT DEFAULT TABLE NAME HERE"
 }
 
 variable "allowed_origin" {
   description = "CORS allowed origin"
   type        = string
-  default     = "https://bnidevs.github.io"
+  default     = "INSERT DEFAULT URL HERE"
 }
 
 provider "aws" {

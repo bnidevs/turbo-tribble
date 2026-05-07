@@ -11,11 +11,11 @@ Parameters:
 
   TableName:
     Type: String
-    Default: bnidevs.github.io-visit-tracker
+    Default: INSERT DEFAULT TABLE NAME HERE
 
   AllowedOrigin:
     Type: String
-    Default: https://bnidevs.github.io
+    Default: INSERT DEFAULT URL HERE
 
 Resources:
   # ---------- DynamoDB Table ----------
