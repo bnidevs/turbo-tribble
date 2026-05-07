@@ -5,6 +5,9 @@ helpful snippets that i use and have used in my projects
 
 ## What's In Here
 
+### [`static-website-scaffolding/`](static-website-scaffolding/)
+IaC definitions for the foundational infrastructure behind a static website: an S3 bucket with public static hosting, a CloudFront distribution serving the bucket over HTTPS, a Route 53 hosted zone, and an ACM certificate with automated DNS validation. Provided in three equivalent IaC flavors (CDK, Terraform, CloudFormation). This is the base layer that [`static-website-codepipeline/`](static-website-codepipeline/) deploys into.
+
 ### [`static-website-codepipeline/`](static-website-codepipeline/)
 A full AWS CodePipeline definition for static site deployment, provided in three equivalent IaC flavors (CDK, Terraform, CloudFormation). Implements a five-stage pipeline: Source → Staging → Manual Approval → Production → Cleanup. The cleanup stage invokes the two Lambdas below in sequence.
 
@@ -16,6 +19,9 @@ Lambda function that creates a wildcard cache invalidation (`/*`) on a CloudFron
 
 ### [`pagespeed-insights-to-cloudwatch-metrics/`](pagespeed-insights-to-cloudwatch-metrics/)
 Lambda function that fetches Google PageSpeed Insights scores for a list of URLs and publishes them as custom CloudWatch metrics. Runs as a post-deploy benchmark in website pipelines, snapshotting Lighthouse scores (accessibility, best practices, performance, SEO) for both mobile and desktop strategies.
+
+### [`visit-counter/`](visit-counter/)
+IaC definitions for a serverless visit counter: an API Gateway REST API with direct DynamoDB service integrations (no Lambda). `GET /visit` increments the counter, `GET /count` reads it back. CORS is scoped to a single allowed origin. Provided in three equivalent IaC flavors (CDK, Terraform, CloudFormation).
 
 ### [`daily-stock-checker/`](daily-stock-checker/)
 Lambda function that checks a stock price against a target, calculates the distance, and sends an SNS notification with the update and a random quote. Designed to run on a daily EventBridge schedule, skipping NASDAQ holidays. Provided in three IaC flavors (CDK, Terraform, CloudFormation) that provision the Lambda, IAM role, and EventBridge schedule.
