@@ -3,7 +3,11 @@ helpful snippets that i use and have used in my projects
 
 ---
 
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bnidevs/turbo-tribble/main.yml?label=iac-lint)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bnidevs/turbo-tribble/iac-security-scan.yml?label=checkov)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bnidevs/turbo-tribble/cfn-lint.yml?label=cfn-lint)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bnidevs/turbo-tribble/typescript-lint.yml?label=ts-lint)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bnidevs/turbo-tribble/terraform-lint.yml?label=terraform-lint)
+
 
 ## What's In Here
 
