@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────
-# Ping-Me: API Gateway HTTP API v2 → Lambda → SNS
+# Ping-Me: API Gateway HTTP API v2 -> Lambda -> SNS
 # ──────────────────────────────────────────────
 
 terraform {
