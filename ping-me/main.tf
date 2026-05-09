@@ -39,10 +39,23 @@ provider "aws" {
   region = var.aws_region
 }
 
-# ──── SNS Topic ────
+# ──── KMS Key for Lambda env var encryption ────
+
+resource "aws_kms_key" "lambda_env" {
+  description         = "Encrypts Lambda environment variables at rest"
+  enable_key_rotation = true
+}
+
+resource "aws_kms_alias" "lambda_env" {
+  name          = "alias/ping-me-lambda-env"
+  target_key_id = aws_kms_key.lambda_env.key_id
+}
+
+# ──── SNS Topic (encrypted) ────
 
 resource "aws_sns_topic" "ping_me" {
-  name = "ping-me-topic"
+  name              = "ping-me-topic"
+  kms_master_key_id = "alias/aws/sns"
 }
 
 # ──── IAM Role & Policy for Lambda ────
@@ -84,12 +97,14 @@ resource "aws_iam_role_policy" "lambda_sns_publish" {
 # ──── Lambda Function ────
 
 resource "aws_lambda_function" "ping_me" {
-  function_name = "ping-me"
-  role          = aws_iam_role.lambda_exec.arn
-  handler       = "lambda_function.lambda_handler"
-  runtime       = "python3.13"
-  filename      = var.lambda_zip_path
-  timeout       = 10
+  function_name                  = "ping-me"
+  role                           = aws_iam_role.lambda_exec.arn
+  handler                        = "lambda_function.lambda_handler"
+  runtime                        = "python3.13"
+  filename                       = var.lambda_zip_path
+  timeout                        = 10
+  reserved_concurrent_executions = 2
+  kms_key_arn                    = aws_kms_key.lambda_env.arn
 
   source_code_hash = filebase64sha256(var.lambda_zip_path)
 
