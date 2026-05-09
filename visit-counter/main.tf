@@ -122,11 +122,11 @@ resource "aws_api_gateway_integration" "get_visit" {
 
   request_templates = {
     "application/json" = jsonencode({
-      TableName                = var.table_name
-      Key                      = { metric = { S = "visits" } }
-      UpdateExpression         = "SET amount = amount + :num"
+      TableName                 = var.table_name
+      Key                       = { metric = { S = "visits" } }
+      UpdateExpression          = "SET amount = amount + :num"
       ExpressionAttributeValues = { ":num" = { N = "1" } }
-      ReturnValues             = "NONE"
+      ReturnValues              = "NONE"
     })
   }
 }
