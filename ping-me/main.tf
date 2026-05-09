@@ -122,10 +122,29 @@ resource "aws_apigatewayv2_api" "ping_me" {
   protocol_type = "HTTP"
 }
 
+resource "aws_cloudwatch_log_group" "apigw" {
+  name              = "/aws/apigateway/ping-me-api"
+  retention_in_days = 14
+}
+
 resource "aws_apigatewayv2_stage" "ping_me" {
   api_id      = aws_apigatewayv2_api.ping_me.id
   name        = var.stage_name
   auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.apigw.arn
+    format = jsonencode({
+      requestId      = "$context.requestId"
+      ip             = "$context.identity.sourceIp"
+      requestTime    = "$context.requestTime"
+      httpMethod     = "$context.httpMethod"
+      routeKey       = "$context.routeKey"
+      status         = "$context.status"
+      protocol       = "$context.protocol"
+      responseLength = "$context.responseLength"
+    })
+  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {
@@ -135,10 +154,13 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
+# authorization_type explicitly set to NONE — this is an intentionally public endpoint.
+# If you want to lock it down later, switch to AWS_IAM or add a JWT authorizer.
 resource "aws_apigatewayv2_route" "get_ping" {
-  api_id    = aws_apigatewayv2_api.ping_me.id
-  route_key = "GET /ping-me"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.ping_me.id
+  route_key          = "GET /ping-me"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "NONE"
 }
 
 # ──── Lambda Permission for API Gateway ────

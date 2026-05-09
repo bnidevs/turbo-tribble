@@ -54,7 +54,8 @@ resource "aws_kms_alias" "lambda_env" {
 # --- DLQ ---
 
 resource "aws_sqs_queue" "lambda_dlq" {
-  name = "daily-stock-checker-dlq"
+  name                    = "daily-stock-checker-dlq"
+  sqs_managed_sse_enabled = true
 }
 
 # --- IAM ---
