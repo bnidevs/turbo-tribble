@@ -1,0 +1,169 @@
+# .github/workflows/cdk-lint.yml
+#
+# CDK (TypeScript) static analysis: ESLint syntax-level linting.
+# Does NOT catch type-aware issues (no tsconfig.json in CDK dirs)
+# but flags unused vars, bad syntax, import problems, etc.
+# Zero AWS credentials required. No CDK project scaffolding needed.
+
+name: TypeScript Lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*-stack.ts'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*-stack.ts'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cdk-eslint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install ESLint with TypeScript support
+        run: |
+          npm install --no-save \
+            eslint \
+            @typescript-eslint/parser \
+            @typescript-eslint/eslint-plugin \
+            typescript
+
+      - name: Generate ESLint config
+        run: |
+          cat > eslint.config.mjs << 'EOF'
+          import tsParser from "@typescript-eslint/parser";
+          import tsPlugin from "@typescript-eslint/eslint-plugin";
+
+          export default [
+            {
+              files: ["**/*-stack.ts"],
+              languageOptions: {
+                parser: tsParser,
+                parserOptions: {
+                  ecmaVersion: "latest",
+                  sourceType: "module",
+                },
+              },
+              plugins: {
+                "@typescript-eslint": tsPlugin,
+              },
+              rules: {
+                // --- Catches real bugs ---
+                "no-undef": "off",                              // TS handles this; ESLint can't without type info
+                "@typescript-eslint/no-unused-vars": ["warn", {
+                  "argsIgnorePattern": "^_",
+                  "varsIgnorePattern": "^_",
+                }],
+                "no-dupe-keys": "error",
+                "no-duplicate-case": "error",
+                "no-unreachable": "error",
+                "no-constant-condition": "warn",
+                "no-empty": "warn",
+                "no-redeclare": "error",
+
+                // --- Code quality ---
+                "prefer-const": "warn",
+                "no-var": "error",
+                "eqeqeq": ["warn", "always"],
+                "no-eval": "error",
+                "no-implied-eval": "error",
+                "no-throw-literal": "warn",
+              },
+            },
+          ];
+          EOF
+
+      - name: Run ESLint on CDK stack files
+        run: |
+          npx eslint \
+            static-website-codepipeline/*-stack.ts \
+            static-website-scaffolding/*-stack.ts \
+            visit-counter/*-stack.ts \
+            daily-stock-checker/*-stack.ts \
+            ping-me/*-stack.ts
+
+  # ──────────────────────────────────────────────
+  # CDK synth + cfn-lint on synthesized output
+  #
+  # DISABLED: CDK directories don't have package.json,
+  # tsconfig.json, or cdk.json yet. Uncomment once
+  # per-directory CDK project scaffolding is added.
+  # ──────────────────────────────────────────────
+  # cdk-synth:
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       dir:
+  #         - static-website-codepipeline
+  #         - static-website-scaffolding
+  #         - visit-counter
+  #         - daily-stock-checker
+  #         - ping-me
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Setup Node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #
+  #     - name: Install CDK dependencies
+  #       run: |
+  #         if [ ! -f "${{ matrix.dir }}/package.json" ] && [ ! -f "${{ matrix.dir }}/cdk.json" ]; then
+  #           echo "No CDK project in ${{ matrix.dir }}, skipping"
+  #           exit 0
+  #         fi
+  #         cd ${{ matrix.dir }}
+  #         npm ci
+  #
+  #     - name: TypeScript type check
+  #       run: |
+  #         if [ ! -f "${{ matrix.dir }}/tsconfig.json" ]; then
+  #           echo "No tsconfig.json, skipping type check"
+  #           exit 0
+  #         fi
+  #         cd ${{ matrix.dir }}
+  #         npx tsc --noEmit
+  #
+  #     - name: CDK synth
+  #       run: |
+  #         if [ ! -f "${{ matrix.dir }}/cdk.json" ]; then
+  #           echo "No cdk.json, skipping synth"
+  #           exit 0
+  #         fi
+  #         cd ${{ matrix.dir }}
+  #         npx cdk synth --output=cdk.out --quiet
+  #       env:
+  #         CDK_DEFAULT_ACCOUNT: "000000000000"
+  #         CDK_DEFAULT_REGION: "us-east-1"
+  #
+  #     - name: cfn-lint on synthesized templates
+  #       run: |
+  #         if [ ! -d "${{ matrix.dir }}/cdk.out" ]; then
+  #           echo "No cdk.out, skipping cfn-lint"
+  #           exit 0
+  #         fi
+  #         pip install cfn-lint --break-system-packages --quiet
+  #         for f in ${{ matrix.dir }}/cdk.out/*.template.json; do
+  #           [ -f "$f" ] || continue
+  #           echo "::group::Linting $f"
+  #           cfn-lint -t "$f" || true
+  #           echo "::endgroup::"
+  #         done

@@ -1,0 +1,57 @@
+# .github/workflows/cfn-lint.yml
+#
+# CloudFormation static analysis: cfn-lint.
+# Runs on every push and PR that touches .yml/.yaml files
+# outside .github/. Zero AWS credentials required.
+
+name: CloudFormation Lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '!.github/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '!.github/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cfn-lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - static-website-codepipeline
+          - static-website-scaffolding
+          - visit-counter
+          - daily-stock-checker
+          - ping-me
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup cfn-lint
+        uses: scottbrenner/cfn-lint-action@v2
+
+      - name: Run cfn-lint
+        run: |
+          # Find CFN templates — they'll have AWSTemplateFormatVersion or Resources at top level
+          for f in ${{ matrix.dir }}/*.yml ${{ matrix.dir }}/*.yaml; do
+            [ -f "$f" ] || continue
+            if head -20 "$f" | grep -qE '(AWSTemplateFormatVersion|Resources:)'; then
+              echo "::group::Linting $f"
+              cfn-lint -t "$f"
+              echo "::endgroup::"
+            fi
+          done

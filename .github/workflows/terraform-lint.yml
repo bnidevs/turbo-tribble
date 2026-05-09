@@ -1,0 +1,139 @@
+# .github/workflows/terraform-lint.yml
+#
+# Terraform static analysis: fmt, validate, tflint.
+# Runs on every push and PR. Zero AWS credentials required
+# (except the optional terraform plan job at the bottom).
+
+name: Terraform Lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.tf'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.tf'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform-lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - static-website-codepipeline
+          - static-website-scaffolding
+          - visit-counter
+          - daily-stock-checker
+          - ping-me
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -diff
+        working-directory: ${{ matrix.dir }}
+
+      - name: Terraform init (backend=false)
+        run: terraform init -backend=false
+        working-directory: ${{ matrix.dir }}
+
+      - name: Terraform validate
+        run: terraform validate
+        working-directory: ${{ matrix.dir }}
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_wrapper: false
+
+      - name: Init TFLint (AWS plugin)
+        run: |
+          cat > .tflint.hcl << 'EOF'
+          plugin "aws" {
+            enabled = true
+            version = "0.36.0"
+            source  = "github.com/terraform-linters/tflint-ruleset-aws"
+          }
+          EOF
+          tflint --init
+        working-directory: ${{ matrix.dir }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run TFLint
+        run: tflint --force
+        working-directory: ${{ matrix.dir }}
+
+  # ──────────────────────────────────────────────
+  # OPTIONAL: Terraform Plan (requires AWS credentials)
+  #
+  # This is Tier 2 — it makes real AWS API calls to
+  # build a plan but creates no resources.
+  # Uncomment when you've set up OIDC federation.
+  # ──────────────────────────────────────────────
+  # terraform-plan:
+  #   needs: [terraform-lint]
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     id-token: write   # Required for OIDC
+  #     pull-requests: write
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       dir:
+  #         - static-website-codepipeline
+  #         - static-website-scaffolding
+  #         - visit-counter
+  #         - daily-stock-checker
+  #         - ping-me
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Configure AWS credentials (OIDC)
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-terraform-plan
+  #         aws-region: us-east-1
+  #
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v4
+  #
+  #     - name: Terraform init
+  #       run: terraform init
+  #       working-directory: ${{ matrix.dir }}
+  #
+  #     - name: Terraform plan
+  #       id: plan
+  #       run: terraform plan -no-color -input=false
+  #       working-directory: ${{ matrix.dir }}
+  #
+  #     # Post plan output as PR comment
+  #     - name: Comment plan on PR
+  #       if: github.event_name == 'pull_request'
+  #       uses: actions/github-script@v7
+  #       with:
+  #         script: |
+  #           const plan = `${{ steps.plan.outputs.stdout }}`;
+  #           const truncated = plan.length > 60000
+  #             ? plan.substring(0, 60000) + '\n\n... (truncated)'
+  #             : plan;
+  #           await github.rest.issues.createComment({
+  #             owner: context.repo.owner,
+  #             repo: context.repo.repo,
+  #             issue_number: context.issue.number,
+  #             body: `#### Terraform Plan — \`${{ matrix.dir }}\`\n\`\`\`\n${truncated}\n\`\`\``
+  #           });

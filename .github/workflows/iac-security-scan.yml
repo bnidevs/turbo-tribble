@@ -1,0 +1,52 @@
+# .github/workflows/iac-security-scan.yml
+#
+# Checkov security scan across all IaC types (Terraform, CloudFormation).
+# Runs on every push and PR. Zero AWS credentials required.
+#
+# Linting is handled by separate workflows:
+#   - terraform-lint.yml  → fmt, validate, tflint
+#   - cfn-lint.yml        → cfn-lint
+#   - cdk-lint.yml        → ESLint on CDK TypeScript files
+
+name: IaC Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checkov:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # only if you want SARIF upload
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          # Scan Terraform, CloudFormation, and any CDK-synth output
+          framework: terraform,cloudformation
+          # Start permissive — you WILL get noise on first run.
+          # Review findings, then add skip_check for intentional decisions.
+          # Example: skip_check: CKV_AWS_18,CKV_AWS_21
+          soft_fail: true  # Don't block PRs until you've triaged initial findings
+          output_format: cli
+          # To upload to GitHub Security tab instead:
+          # output_format: sarif
+          # output_file_path: checkov-results.sarif
+
+      # Uncomment once you switch to SARIF output:
+      # - name: Upload Checkov results to Security tab
+      #   if: always()
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: checkov-results.sarif
