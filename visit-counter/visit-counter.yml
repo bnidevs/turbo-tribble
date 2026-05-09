@@ -4,11 +4,6 @@ Description: >-
   Hit counter for a GitHub Pages site.
 
 Parameters:
-  Region:
-    Type: String
-    Default: us-east-1
-    Description: AWS region (informational — deploy to desired region via CLI)
-
   TableName:
     Type: String
     Default: INSERT DEFAULT TABLE NAME HERE
