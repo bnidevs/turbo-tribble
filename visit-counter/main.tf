@@ -1,5 +1,5 @@
 ####################################################################
-# Visit Counter – API Gateway (REST) → DynamoDB direct integration
+# Visit Counter - API Gateway (REST) -> DynamoDB direct integration
 # Terraform
 ####################################################################
 
