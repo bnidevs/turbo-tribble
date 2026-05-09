@@ -3,6 +3,8 @@ helpful snippets that i use and have used in my projects
 
 ---
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bnidevs/turbo-tribble/main.yml?label=iac-lint)
+
 ## What's In Here
 
 ### [`static-website-scaffolding/`](static-website-scaffolding/)
