@@ -39,25 +39,6 @@ variable "target_price" {
   default = 300
 }
 
-# --- KMS Key for Lambda env var encryption ---
-
-resource "aws_kms_key" "lambda_env" {
-  description         = "Encrypts Lambda environment variables at rest"
-  enable_key_rotation = true
-}
-
-resource "aws_kms_alias" "lambda_env" {
-  name          = "alias/daily-stock-checker-lambda-env"
-  target_key_id = aws_kms_key.lambda_env.key_id
-}
-
-# --- DLQ ---
-
-resource "aws_sqs_queue" "lambda_dlq" {
-  name                    = "daily-stock-checker-dlq"
-  sqs_managed_sse_enabled = true
-}
-
 # --- IAM ---
 
 data "aws_iam_policy_document" "lambda_assume" {
@@ -74,11 +55,6 @@ data "aws_iam_policy_document" "lambda_permissions" {
   statement {
     actions   = ["sns:Publish"]
     resources = [var.sns_topic_arn]
-  }
-
-  statement {
-    actions   = ["sqs:SendMessage"]
-    resources = [aws_sqs_queue.lambda_dlq.arn]
   }
 
   statement {
@@ -111,20 +87,14 @@ data "archive_file" "lambda_zip" {
 }
 
 resource "aws_lambda_function" "stock_checker" {
-  function_name                  = "daily-stock-checker"
-  role                           = aws_iam_role.lambda.arn
-  handler                        = "lambda_function.lambda_handler"
-  runtime                        = "python3.12"
-  timeout                        = 30
-  memory_size                    = 128
-  reserved_concurrent_executions = 1
-  kms_key_arn                    = aws_kms_key.lambda_env.arn
-  filename                       = data.archive_file.lambda_zip.output_path
-  source_code_hash               = data.archive_file.lambda_zip.output_base64sha256
-
-  dead_letter_config {
-    target_arn = aws_sqs_queue.lambda_dlq.arn
-  }
+  function_name    = "daily-stock-checker"
+  role             = aws_iam_role.lambda.arn
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.12"
+  timeout          = 30
+  memory_size      = 128
+  filename         = data.archive_file.lambda_zip.output_path
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
 
   environment {
     variables = {

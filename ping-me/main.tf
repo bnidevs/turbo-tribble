@@ -39,23 +39,10 @@ provider "aws" {
   region = var.aws_region
 }
 
-# ──── KMS Key for Lambda env var encryption ────
-
-resource "aws_kms_key" "lambda_env" {
-  description         = "Encrypts Lambda environment variables at rest"
-  enable_key_rotation = true
-}
-
-resource "aws_kms_alias" "lambda_env" {
-  name          = "alias/ping-me-lambda-env"
-  target_key_id = aws_kms_key.lambda_env.key_id
-}
-
-# ──── SNS Topic (encrypted) ────
+# ──── SNS Topic ────
 
 resource "aws_sns_topic" "ping_me" {
-  name              = "ping-me-topic"
-  kms_master_key_id = "alias/aws/sns"
+  name = "ping-me-topic"
 }
 
 # ──── IAM Role & Policy for Lambda ────
@@ -97,14 +84,12 @@ resource "aws_iam_role_policy" "lambda_sns_publish" {
 # ──── Lambda Function ────
 
 resource "aws_lambda_function" "ping_me" {
-  function_name                  = "ping-me"
-  role                           = aws_iam_role.lambda_exec.arn
-  handler                        = "lambda_function.lambda_handler"
-  runtime                        = "python3.13"
-  filename                       = var.lambda_zip_path
-  timeout                        = 10
-  reserved_concurrent_executions = 2
-  kms_key_arn                    = aws_kms_key.lambda_env.arn
+  function_name = "ping-me"
+  role          = aws_iam_role.lambda_exec.arn
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.13"
+  filename      = var.lambda_zip_path
+  timeout       = 10
 
   source_code_hash = filebase64sha256(var.lambda_zip_path)
 
@@ -122,29 +107,10 @@ resource "aws_apigatewayv2_api" "ping_me" {
   protocol_type = "HTTP"
 }
 
-resource "aws_cloudwatch_log_group" "apigw" {
-  name              = "/aws/apigateway/ping-me-api"
-  retention_in_days = 14
-}
-
 resource "aws_apigatewayv2_stage" "ping_me" {
   api_id      = aws_apigatewayv2_api.ping_me.id
   name        = var.stage_name
   auto_deploy = true
-
-  access_log_settings {
-    destination_arn = aws_cloudwatch_log_group.apigw.arn
-    format = jsonencode({
-      requestId      = "$context.requestId"
-      ip             = "$context.identity.sourceIp"
-      requestTime    = "$context.requestTime"
-      httpMethod     = "$context.httpMethod"
-      routeKey       = "$context.routeKey"
-      status         = "$context.status"
-      protocol       = "$context.protocol"
-      responseLength = "$context.responseLength"
-    })
-  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {
@@ -154,13 +120,10 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
-# authorization_type explicitly set to NONE — this is an intentionally public endpoint.
-# If you want to lock it down later, switch to AWS_IAM or add a JWT authorizer.
 resource "aws_apigatewayv2_route" "get_ping" {
-  api_id             = aws_apigatewayv2_api.ping_me.id
-  route_key          = "GET /ping-me"
-  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
-  authorization_type = "NONE"
+  api_id    = aws_apigatewayv2_api.ping_me.id
+  route_key = "GET /ping-me"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 # ──── Lambda Permission for API Gateway ────
