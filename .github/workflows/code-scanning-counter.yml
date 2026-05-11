@@ -1,0 +1,57 @@
+name: Count Code Scanning Alerts
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * *'
+
+jobs:
+  count-alerts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Count open code scanning alerts
+        id: count
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=0
+          page=1
+          while true; do
+            response=$(gh api \
+              "/repos/${{ github.repository }}/code-scanning/alerts?state=open&per_page=100&page=${page}" \
+              --jq 'length')
+            count=$((count + response))
+            if [ "$response" -lt 100 ]; then
+              break
+            fi
+            page=$((page + 1))
+          done
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+          echo "### Code Scanning Alerts: ${count}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write badge JSON
+        run: |
+          mkdir -p .github/badges
+          count=${{ steps.count.outputs.count }}
+          if [ "$count" -eq 0 ]; then
+            color="brightgreen"
+          elif [ "$count" -le 5 ]; then
+            color="yellow"
+          else
+            color="red"
+          fi
+          echo "{\"schemaVersion\":1,\"label\":\"code scanning alerts\",\"message\":\"${count}\",\"color\":\"${color}\"}" > .github/badges/code-scanning.json
+
+      - name: Commit badge
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .github/badges/code-scanning.json
+          git diff --cached --quiet || git commit -m "Update code scanning badge [skip ci]"
+          git push
