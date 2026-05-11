@@ -8,7 +8,8 @@ helpful snippets that i use and have used in my projects
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bnidevs/turbo-tribble/typescript-lint.yml?label=ts-lint)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/bnidevs/turbo-tribble/terraform-lint.yml?label=terraform-lint)
 
-There are numerous Checkov flagged issues with the way I have declared infrastructure in this repo.
+There are ![Endpoint Badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbnidevs%2Fturbo-tribble%2Frefs%2Fheads%2Fmain%2F.github%2Fbadges%2Fcode-scanning.json)
+ Checkov flagged issues with the way I have declared infrastructure in this repo.
 
 You can view them [here](https://github.com/bnidevs/turbo-tribble/security/code-scanning).
 
