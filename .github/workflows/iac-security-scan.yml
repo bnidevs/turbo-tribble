@@ -39,14 +39,11 @@ jobs:
           # Review findings, then add skip_check for intentional decisions.
           # Example: skip_check: CKV_AWS_18,CKV_AWS_21
           soft_fail: true  # Don't block PRs until you've triaged initial findings
-          output_format: cli
-          # To upload to GitHub Security tab instead:
-          # output_format: sarif
-          # output_file_path: checkov-results.sarif
-
-      # Uncomment once you switch to SARIF output:
-      # - name: Upload Checkov results to Security tab
-      #   if: always()
-      #   uses: github/codeql-action/upload-sarif@v3
-      #   with:
-      #     sarif_file: checkov-results.sarif
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+          
+      - name: Upload Checkov results to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-results.sarif
