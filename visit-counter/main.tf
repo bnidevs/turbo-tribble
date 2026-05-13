@@ -94,6 +94,10 @@ resource "aws_iam_role_policy" "apigw_dynamo" {
 resource "aws_api_gateway_rest_api" "visit" {
   name        = "visit-counter-api"
   description = "Hit counter for ${var.allowed_origin}"
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_api_gateway_resource" "visit" {
