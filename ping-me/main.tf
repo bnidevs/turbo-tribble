@@ -124,7 +124,7 @@ resource "aws_apigatewayv2_api" "ping_me" {
 
 resource "aws_cloudwatch_log_group" "apigw" {
   name              = "/aws/apigateway/ping-me-api"
-  retention_in_days = 14
+  retention_in_days = 365
 }
 
 resource "aws_apigatewayv2_stage" "ping_me" {
