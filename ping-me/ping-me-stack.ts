@@ -34,6 +34,7 @@ export class PingMeStack extends cdk.Stack {
       handler: "lambda_function.lambda_handler",
       code: lambda.Code.fromAsset(path.join(__dirname, "../lambda")),
       timeout: cdk.Duration.seconds(10),
+      reservedConcurrentExecutions: 2,
       environment: {
         SNS_TOPIC_ARN: topic.topicArn,
       },

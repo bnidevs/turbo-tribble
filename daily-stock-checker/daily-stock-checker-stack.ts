@@ -43,6 +43,7 @@ class DailyStockCheckerStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, "../lambda")),
       timeout: cdk.Duration.seconds(30),
       memorySize: 128,
+      reservedConcurrentExecutions: 1,
       environment: {
         API_KEY: fmpApiKey,
         STOCK: stockSymbol,
