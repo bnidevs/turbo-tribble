@@ -26,6 +26,7 @@ export class VisitCounterStack extends cdk.Stack {
       partitionKey: { name: "metric", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
     });
 
     // Seed the counter item so the UpdateExpression doesn't fail on a

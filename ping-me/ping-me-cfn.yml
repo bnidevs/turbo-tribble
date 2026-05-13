@@ -29,6 +29,7 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: ping-me-topic
+      KmsMasterKeyId: alias/aws/sns
 
   # ──── IAM Role for Lambda ────
 

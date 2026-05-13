@@ -32,6 +32,10 @@ resource "aws_dynamodb_table" "visit_tracker" {
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "metric"
 
+  point_in_time_recovery {
+    enabled = true
+  }
+
   attribute {
     name = "metric"
     type = "S"

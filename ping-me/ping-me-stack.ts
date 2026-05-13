@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
+import * as kms from "aws-cdk-lib/aws-kms";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
@@ -24,6 +25,7 @@ export class PingMeStack extends cdk.Stack {
 
     const topic = new sns.Topic(this, "PingMeTopic", {
       topicName: "ping-me-topic",
+      masterKey: kms.Alias.fromAliasName(this, "SnsKey", "alias/aws/sns"),
     });
 
     // ──── Lambda Function ────
