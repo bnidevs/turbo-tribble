@@ -15,8 +15,8 @@ GET /ping-me?msg=hello
          │ (payload format 2.0)
          ▼
   ┌───────────────┐
-  │    Lambda      │
-  │  (Python 3.13) │
+  │   Lambda      │
+  │ (Python 3.13) │
   └──────┬────────┘
          │
          ▼
