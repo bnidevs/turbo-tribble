@@ -12,6 +12,10 @@ This pipeline automates the deployment of a static site through five stages:
 4. **Deploy** — Deploys the same source artifact to the production S3 bucket.
 5. **Cleanup** — Sequentially invokes two Lambda functions: one to set `Cache-Control` headers on the deployed objects, and one to invalidate the CloudFront distribution cache.
 
+### Diagram
+
+![](./static-website-codepipeline.png)
+
 ## How I Use This in My Projects
 
 This is the deployment pipeline for my static websites that are backed by S3 + CloudFront. It gives me a staging environment to sanity-check changes before they go live, and the cleanup stage handles the two things S3 deploy actions don't do on their own: setting proper cache headers and busting the CDN cache.

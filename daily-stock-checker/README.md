@@ -12,6 +12,10 @@ When invoked, this Lambda:
 4. Fetches a random quote from the ZenQuotes API.
 5. Publishes a formatted message to an SNS topic with the price update and the quote.
 
+### Diagram
+
+![](./daily-stock-checker.png)
+
 ## Project Structure
 
 ```

@@ -15,6 +15,10 @@ Each file provisions the same set of resources:
 
 There is no Lambda in this stack. API Gateway talks to DynamoDB directly using AWS service integrations and VTL mapping templates.
 
+### Diagram
+
+![](./visit-counter.png)
+
 ## How I Use This in My Projects
 
 This is the hit counter for my GitHub Pages site. The frontend calls `GET /visit` on page load to bump the count, and `GET /count` to read it back for display.

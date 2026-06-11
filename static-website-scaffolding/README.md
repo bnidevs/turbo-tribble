@@ -12,6 +12,11 @@ Each file provisions the same set of resources:
 4. **CloudFront Distribution** — Serves the S3 website endpoint over HTTPS with the custom domain. Uses the S3 *website* endpoint (not the REST endpoint) as a custom origin over HTTP, so that S3 index/error document routing works correctly.
 5. **Route 53 A Record** — An alias record pointing the apex domain to the CloudFront distribution.
 
+
+### Diagram
+
+![](./static-website-scaffolding.png)
+
 ## How I Use This in My Projects
 
 This is the base layer for my static sites. It creates the hosting infrastructure that the [`static-website-codepipeline/`](../static-website-codepipeline/) pipeline deploys into. The pipeline handles getting code from GitHub into the S3 bucket; this handles making the bucket reachable at a real domain with HTTPS.
